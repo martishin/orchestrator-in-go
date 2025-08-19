@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"github.com/martishin/orchestrator-in-go/manager"
 	"github.com/martishin/orchestrator-in-go/node"
 	"github.com/martishin/orchestrator-in-go/task"
@@ -15,8 +18,44 @@ import (
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	// testTask()
-	testWorker()
+	// testWorker()
+	testAPI()
+}
+
+func testAPI() {
+	host := os.Getenv("CUBE_HOST")
+	port, _ := strconv.Atoi(os.Getenv("CUBE_PORT"))
+
+	fmt.Println("Starting Cube Worker")
+
+	w := worker.Worker{
+		Queue: *queue.New(),
+		Db:    make(map[uuid.UUID]*task.Task),
+	}
+	api := worker.Api{Address: host, Port: port, Worker: &w}
+
+	go runTasks(&w)
+	api.Start()
+}
+
+func runTasks(w *worker.Worker) {
+	for {
+		if w.Queue.Len() != 0 {
+			result := w.RunTask()
+			if result.Error != nil {
+				log.Printf("Error running task: %v\n", result.Error)
+			}
+		} else {
+			log.Printf("No tasks to process currently.\n")
+		}
+		log.Println("Sleeping for 10 seconds.")
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func testTask() {
@@ -31,7 +70,6 @@ func testTask() {
 
 	te := task.TaskEvent{
 		ID:        uuid.New(),
-		State:     task.Pending,
 		Timestamp: time.Now(),
 		Task:      t,
 	}
