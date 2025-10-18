@@ -1,0 +1,9 @@
+.git
+bin
+**/*.swp
+**/*.log
+**/.DS_Store
+**/__pycache__/
+node_modules
+dist
+build

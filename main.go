@@ -18,9 +18,8 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found; using env vars")
 	}
 	// testTask()
 	// testWorker()
@@ -28,8 +27,8 @@ func main() {
 }
 
 func testAPI() {
-	host := os.Getenv("CUBE_HOST")
-	port, _ := strconv.Atoi(os.Getenv("CUBE_PORT"))
+	host := getEnvOrDefault("CUBE_HOST", "0.0.0.0")
+	port, _ := strconv.Atoi(getEnvOrDefault("CUBE_PORT", "5555"))
 
 	fmt.Println("Starting Cube Worker")
 
@@ -40,6 +39,7 @@ func testAPI() {
 	api := worker.Api{Address: host, Port: port, Worker: &w}
 
 	go runTasks(&w)
+	go w.CollectStats()
 	api.Start()
 }
 
@@ -198,4 +198,11 @@ func stopContainer(d *task.Docker, id string) *task.DockerResult {
 
 	fmt.Printf("Container %s has been stopped and removed\n", id)
 	return &result
+}
+
+func getEnvOrDefault(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
 }

@@ -40,3 +40,6 @@ Content-Type: application/json
 
 ### Delete a task
 DELETE http://localhost:5555/tasks/54ab38d0-b757-4c77-b1e6-3b8dd51d2271
+
+### Get stats
+GET http://localhost:5555/stats

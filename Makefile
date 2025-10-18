@@ -1,5 +1,9 @@
+IMAGE_NAME ?= cube-worker
+TAG ?= dev
+PORT ?= 5555
+
 run:
-	go run main.go
+	CUBE_HOST=localhost CUBE_PORT=$(PORT) go run main.go
 
 test:
 	go test ./... -v
@@ -13,3 +17,21 @@ fmt:
 
 clean:
 	rm -rf bin
+
+docker-build:
+	docker build -t $(IMAGE_NAME):$(TAG) .
+
+docker-run: docker-build
+	docker run --rm \
+		-p $(PORT):$(PORT) \
+		-e CUBE_HOST=0.0.0.0 \
+		-e CUBE_PORT=$(PORT) \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		--name $(IMAGE_NAME)-$(TAG) \
+		$(IMAGE_NAME):$(TAG)
+
+docker-logs:
+	docker logs -f $(IMAGE_NAME)-$(TAG)
+
+docker-stop:
+	docker stop $(IMAGE_NAME)-$(TAG) || true
