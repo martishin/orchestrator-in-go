@@ -6,3 +6,10 @@ test:
 
 tidy:
 	go mod tidy
+
+fmt:
+	go fmt ./...
+	goimports -w . || true
+
+clean:
+	rm -rf bin
