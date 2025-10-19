@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -23,7 +24,69 @@ func main() {
 	}
 	// testTask()
 	// testWorker()
-	testAPI()
+	// testAPI()
+	testManager()
+}
+
+func testManager() {
+	host := getEnvOrDefault("CUBE_HOST", "localhost")
+	port, _ := strconv.Atoi(getEnvOrDefault("CUBE_PORT", "5555"))
+
+	fmt.Println("Starting Cube Worker")
+
+	w := worker.Worker{
+		Queue: *queue.New(),
+		Db:    make(map[uuid.UUID]*task.Task),
+	}
+	api := worker.Api{Address: host, Port: port, Worker: &w}
+
+	go runTasks(&w)
+	go w.CollectStats()
+	go api.Start()
+
+	readyURL := fmt.Sprintf("http://localhost:%d/stats", port)
+	for i := 0; i < 30; i++ {
+		resp, err := http.Get(readyURL)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			_ = resp.Body.Close()
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	workers := []string{fmt.Sprintf("127.0.0.1:%d", port)}
+	m := manager.New(workers)
+
+	for i := 0; i < 3; i++ {
+		t := task.Task{
+			ID:    uuid.New(),
+			Name:  fmt.Sprintf("test-container-%d-%s", i, uuid.NewString()[:8]),
+			State: task.Scheduled,
+			Image: "strm/helloworld-http",
+		}
+		te := task.TaskEvent{
+			ID:    uuid.New(),
+			State: task.Running,
+			Task:  t,
+		}
+		m.AddTask(te)
+		m.SendWork()
+	}
+
+	go func() {
+		for {
+			fmt.Printf("[Manager] Updating task from %d workers\n", len(m.Workers))
+			m.UpdateTasks()
+			time.Sleep(15 * time.Second)
+		}
+	}()
+
+	for {
+		for _, t := range m.TaskDb {
+			fmt.Printf("[Manager] Task: id: %s, state: %s\n", t.ID, t.State)
+			time.Sleep(15 * time.Second)
+		}
+	}
 }
 
 func testAPI() {
@@ -91,8 +154,8 @@ func testTask() {
 
 	m := manager.Manager{
 		Pending: *queue.New(),
-		TaskDb:  make(map[string][]*task.Task),
-		EventDb: make(map[string][]*task.TaskEvent),
+		TaskDb:  make(map[uuid.UUID]*task.Task),
+		EventDb: make(map[uuid.UUID]*task.TaskEvent),
 		Workers: []string{w.Name},
 	}
 

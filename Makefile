@@ -28,7 +28,11 @@ docker-run: docker-build
 		-e CUBE_PORT=$(PORT) \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		--name $(IMAGE_NAME)-$(TAG) \
-		$(IMAGE_NAME):$(TAG)
+		$(IMAGE_NAME):$(TAG) ; \
+	make docker-clean
+
+docker-clean:
+	- docker ps -a --filter "name=test-container" -q | xargs -r docker rm -f
 
 docker-logs:
 	docker logs -f $(IMAGE_NAME)-$(TAG)
